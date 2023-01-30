@@ -5,15 +5,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.UnknownHostException;
 
 class SimpleClient{
 
     private static int PORT = 4102;
 
     private BufferedReader inReader;
-    private PrintWriter outWriter;
-    Socket clientSocket;
-
+    protected PrintWriter outWriter;
+    protected Socket clientSocket;
 
     public SimpleClient(){
 
@@ -24,18 +24,35 @@ class SimpleClient{
             inReader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             outWriter = new PrintWriter(clientSocket.getOutputStream(), true);
 
-            Inputs inputs = new Inputs();
-            Thread inThread = new Thread(inputs);
+            ServerInputHandler serverIn = new ServerInputHandler(this);
+            Thread inThread = new Thread(serverIn);
             inThread.start();
 
+            while(clientSocket.isConnected())
+            {
+                String currentMessage;  
+                if((currentMessage = inReader.readLine()) != null)
+                    System.out.println(currentMessage);
 
-            String currentMessage;
-            while( (currentMessage = inReader.readLine()) != null){
-                System.out.println(currentMessage);
+                if(currentMessage.startsWith("/quit"))
+                {
+                    inReader.close();
+                    outWriter.close();
+                    clientSocket.close();
+                }
+                
             }
+            
+        }
+        catch ( UnknownHostException e)
+        {
+            System.err.println("Unknow Host Exception - :");
+            System.err.println(e.getMessage());
+            throw new RuntimeException(e);
         }
         catch (IOException e)
         {
+            System.err.println(e.getMessage());
             throw new RuntimeException(e);
         }
 
@@ -44,27 +61,6 @@ class SimpleClient{
 
     public static void main(String[] args)
     {
-
         new SimpleClient();
     }
-
-    class Inputs implements Runnable{
-
-        @Override
-        public void run() {
-            BufferedReader consoleIn = new BufferedReader(new InputStreamReader(System.in));
-
-            while(clientSocket.isConnected()){
-                try {
-                    String consoleMessage = consoleIn.readLine();
-                    outWriter.println(consoleMessage);
-
-                } catch (IOException e) {
-                    //TODO: Handle Input I/O EXCEPTIONS
-                }
-
-            }
-        }
-    }
-
 }
